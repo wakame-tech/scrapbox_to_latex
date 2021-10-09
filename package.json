@@ -1,0 +1,10 @@
+{
+  "name": "scrapbox_to_latex",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "@progfay/scrapbox-parser": "^7.1.0",
+    "topological-sort": "^0.3.0"
+  }
+}
