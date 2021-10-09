@@ -1,6 +1,7 @@
 import { parse } from  '@progfay/scrapbox-parser'
 import TopologicalSort from 'topological-sort';
-import dump from '../wakame-tech-math_20211001_021452.json'
+import mathScrapBox from '../data/wakame-tech-math_20211009_191424.json'
+import labScrapBox from '../data/wakame-tech-lab_20211006_201557.json'
 import { dumpLaTeX, scrapBoxToLaTeXSection } from './renderer/latex'
 import { ScrapBoxDump, ScrapBoxPage } from './types';
 
@@ -42,14 +43,17 @@ const serializePages = (
   return sortedPages;
 };
 
-const pages = (dump as ScrapBoxDump).pages
-const ignoreTitles = ["マップ", "記号定義", "参考文献リスト"];
-const sortedPages = serializePages(pages, ignoreTitles)
-console.log(sortedPages.map((p) => p.title));
+// const pages = (mathScrapBox as ScrapBoxDump).pages;
+// const ignoreTitles = ["マップ", "記号定義", "参考文献リスト"];
+
+const pages = (labScrapBox as ScrapBoxDump).pages;
+const ignoreTitles = []
+const sortedPages = serializePages(pages, ignoreTitles);
+// console.log(sortedPages.map((p) => p.title));
 
 for (let page of sortedPages) {
   const pageRaw = page.lines.join("\n");
   const parsed = parse(pageRaw);
   const section = scrapBoxToLaTeXSection(parsed);
-  // console.log(dumpLaTeX(section));
+  console.log(dumpLaTeX(section));
 }

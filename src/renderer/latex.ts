@@ -30,7 +30,11 @@ export const scrapBoxToLaTeXSection = (page: Page): LaTeXSubSection => {
   let sectionTitle = ''
   let subSectionTitle = ''
   let content = ''
+
   let isInEnumerate = false
+  let isInDefinition = false
+  let isInExample = false
+  let isInProps = false
 
   for (let block of page) {
     if (block.type === 'title') {
@@ -39,12 +43,12 @@ export const scrapBoxToLaTeXSection = (page: Page): LaTeXSubSection => {
     else if (block.type === "line") {
       if (block.indent === 1) {
         if (!isInEnumerate) {
-          content += `\\begin{enumerate}\n`
+          content += `\\begin{itemize}\n`
         }
         isInEnumerate = true;
       } else {
         if (isInEnumerate) {
-          content += `\\end{enumerate}\n`
+          content += `\\end{itemize}\n`;
         }
         isInEnumerate = false;
       }
@@ -72,6 +76,15 @@ export const scrapBoxToLaTeXSection = (page: Page): LaTeXSubSection => {
           if (level === 'subsection') {
             // end of subsection
             if (subSectionTitle !== '') {
+              if (isInDefinition) {
+                content += '\\end{def.}'
+                isInDefinition = false
+              }
+              if (isInExample) {
+                content += '\\end{ex.}'
+                isInExample = false
+              }
+
               subSections.push({
                 title: subSectionTitle,
                 content: content.trim()
@@ -80,24 +93,42 @@ export const scrapBoxToLaTeXSection = (page: Page): LaTeXSubSection => {
             // start next subsection
             subSectionTitle = text;
             content = ''
+
+            if (text === "定義") {
+              isInDefinition = true;
+              content += `\\begin{def.}[${sectionTitle}] \\`;
+            }
+            if (text === "例") {
+              isInExample = true;
+              content += `\\begin{ex.}[${sectionTitle}] \\`;
+            }
           }
         }
         else if (node.type === 'image') {
           // TODO: support image
-          console.log(`image: ${node.src}`)
+          // console.log(`image: ${node.src}`)
         }
         else if (node.type === 'link') {
           // url
           if (node.pathType === 'absolute') {
             // TODO: \cite
           } else if (node.pathType === 'relative') {
-            content += `${node.href}`
+            content += `\\textrm{${node.href}}`
           }
         }
       }
     }
     content += '\n'
     // 'codeBlock', 'table' not supported
+  }
+
+  if (isInDefinition) {
+    content += "\\end{def.}";
+    isInDefinition = false;
+  }
+  if (isInExample) {
+    content += "\\end{ex.}";
+    isInExample = false;
   }
 
   subSections.push({
@@ -116,12 +147,12 @@ export const scrapBoxToLaTeXSection = (page: Page): LaTeXSubSection => {
 
 export const dumpLaTeX = (section: LaTeXSubSection): string => {
   let res = '';
-  res += `\\subsection{${section.title}}\n`;
+  res += `\\section{${section.title}}\n`;
 
   const subSections = section.subSections
     .filter(subSection => !/参考.*/.test( subSection.title))
   for (let subSection of subSections) {
-    res += `\\subsubsection{${subSection.title}}\n`;
+    res += `\\subsection{${subSection.title}}\n`;
     res += subSection.content;
     res += "\n";
   }
