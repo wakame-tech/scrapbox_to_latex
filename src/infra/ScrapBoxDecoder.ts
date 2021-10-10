@@ -1,13 +1,15 @@
 import { parse } from "@progfay/scrapbox-parser";
 import { DocNodeDecoder, DocNode } from "../domain/model/documents";
-import { ScrapBoxPage } from "../domain/model/scrapbox";
+import { ScrapBoxDump } from "../domain/model/scrapbox";
 
-export class ScrapBoxDecoder implements DocNodeDecoder<ScrapBoxPage> {
-  decode(page: ScrapBoxPage): DocNode {
-    return {
-      title: page.title,
-      page: parse(page.lines.join("\n")),
-      links: page.linksLc,
-    };
+export class ScrapBoxDecoder implements DocNodeDecoder<ScrapBoxDump> {
+  decode(dump: ScrapBoxDump): DocNode[] {
+    return dump.pages.map((page) => {
+      return {
+        title: page.title,
+        page: parse(page.lines.join("\n")),
+        links: page.linksLc,
+      };
+    });
   }
 }

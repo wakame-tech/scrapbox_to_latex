@@ -6,5 +6,8 @@
   "dependencies": {
     "@progfay/scrapbox-parser": "^7.1.0",
     "topological-sort": "^0.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^16.10.3"
   }
 }

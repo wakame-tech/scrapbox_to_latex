@@ -7,9 +7,9 @@ export type DocNode = {
 };
 
 export interface DocNodeDecoder<T> {
-  decode(item: T): DocNode;
+  decode(item: T): DocNode[];
 }
 
 export interface DocNodeEncoder<T> {
-  encode(docNode: DocNode): T;
+  encode(docNodes: DocNode[]): T;
 }

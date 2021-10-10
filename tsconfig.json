@@ -3,6 +3,6 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "target": "es2016",
-    "module": "commonjs"
+    "module": "commonjs",
   }
 }

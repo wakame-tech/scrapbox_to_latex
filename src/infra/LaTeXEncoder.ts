@@ -1,4 +1,4 @@
-import { DecorationNode, Page } from "@progfay/scrapbox-parser";
+import { Block, DecorationNode, Line, Page } from "@progfay/scrapbox-parser";
 import { DocNode, DocNodeEncoder } from "../domain/model/documents";
 
 type LaTeXSubSection = {
@@ -12,150 +12,182 @@ type LaTeXSubSubSection = {
 };
 
 // [** ] -> \subsection, [* ] -> \subsubsection
-const convertDecorationNode = (node: DecorationNode): { level: 'subsection' | 'subsubsection', text: string } => {
-  if (node.decos[0] === '*-2') {
+const convertDecorationNode = (node: DecorationNode): { level: "subsection" | "subsubsection"; text: string } => {
+  if (node.decos[0] === "*-2") {
     return {
-      level: 'subsection',
-      text: node.nodes[0].raw
+      level: "subsection",
+      text: node.nodes[0].raw,
+    };
+  } else if (node.decos[0] === "*-1") {
+    return {
+      level: "subsubsection",
+      text: node.nodes[0].raw,
+    };
+  }
+};
+
+type ParserContext = {
+  links: Set<string>
+  subSections: LaTeXSubSubSection[];
+  sectionTitle: string;
+  subSectionTitle: string;
+  content: string;
+  isInEnumerate: boolean;
+};
+
+const parseLine = (block: Line, context: ParserContext): ParserContext => {
+  if (block.indent >= 1) {
+    if (!context.isInEnumerate) {
+      context.content += `\\begin{itemize} \\ \n`;
     }
-  } else if (node.decos[0] === '*-1') {
-    return {
-      level: 'subsubsection',
-      text: node.nodes[0].raw
+    context.isInEnumerate = true;
+  }
+  else {
+    if (context.isInEnumerate) {
+      context.content += `\\end{itemize}\n`;
+    }
+    context.isInEnumerate = false;
+  }
+
+  if (context.isInEnumerate) {
+    context.content += `  \\item `;
+  }
+
+  // console.log(`${context.isInEnumerate} ${block.nodes.map(n => n.raw).join(' ')}`);
+
+  for (let node of block.nodes) {
+    if (node.type === "plain" && node.text.trim().length !== 0) {
+      context.content += node.text.trim();
+    } else if (node.type === "formula") {
+      context.content += ` $${node.formula}$ `;
+    } else if (node.type === "code") {
+      // TODO: support code block
+      context.content += ``;
+    } else if (node.type === "strong") {
+      context.content += `\\textbf{${node.nodes[0].raw}}`;
+    } else if (node.type === "decoration") {
+      const { level, text } = convertDecorationNode(node);
+      // end of subsection
+      if (context.subSectionTitle !== "") {
+        // console.log(`------ end: ${context.sectionTitle}.${context.subSectionTitle}`)
+        context.subSections.push({
+          title: context.subSectionTitle,
+          content: context.content.trim(),
+        });
+      }
+      // start next subsection
+      context.subSectionTitle = text;
+      context.content = "";
+    } else if (node.type === "image") {
+      // TODO: support image
+      // console.log(`image: ${node.src}`)
+    } else if (node.type === "link") {
+      // url
+      if (node.pathType === "absolute") {
+        // TODO: \cite
+      } else if (node.pathType === "relative") {
+        if (context.links.has(node.href)) {
+          const id = Buffer.from(node.href).toString("base64");
+          context.content += `\\hyperref[${id}]{${node.href}}`;
+        } else {
+          context.content += `\\url{${node.href}}`;
+        }
+      }
     }
   }
+
+  return context
 }
 
-const pageToDocNode = (page: Page): LaTeXSubSection => {
-  const subSections: LaTeXSubSubSection[] = [];
-  let sectionTitle = "";
-  let subSectionTitle = "";
-  let content = "";
-
-  let isInEnumerate = false;
-  let isInDefinition = false;
-  let isInExample = false;
-  let isInProps = false;
+const pageToDocNode = (page: Page, links: Set<string>): LaTeXSubSection => {
+  let context: ParserContext = {
+    links,
+    subSections: [],
+    sectionTitle: "",
+    subSectionTitle: "",
+    content: "",
+    isInEnumerate: false,
+  };
 
   for (let block of page) {
     if (block.type === "title") {
-      sectionTitle = block.text;
-    } else if (block.type === "line") {
-      if (block.indent === 1) {
-        if (!isInEnumerate) {
-          content += `\\begin{itemize}\n`;
-        }
-        isInEnumerate = true;
-      } else {
-        if (isInEnumerate) {
-          content += `\\end{itemize}\n`;
-        }
-        isInEnumerate = false;
-      }
-
-      if (isInEnumerate) {
-        content += `  \\item `;
-      }
-
-      for (let node of block.nodes) {
-        // console.log(`${isInEnumerate} ${node.raw}`)
-        if (node.type === "plain") {
-          content += node.text.trim();
-        } else if (node.type === "formula") {
-          content += ` $${node.formula}$ `;
-        } else if (node.type === "code") {
-          content += ``;
-        } else if (node.type === "strong") {
-          content += `\\textbf{${node.nodes[0].raw}}`;
-        } else if (node.type === "decoration") {
-          const { level, text } = convertDecorationNode(node);
-          if (level === "subsection") {
-            // end of subsection
-            if (subSectionTitle !== "") {
-              if (isInDefinition) {
-                content += "\\end{def.}";
-                isInDefinition = false;
-              }
-              if (isInExample) {
-                content += "\\end{ex.}";
-                isInExample = false;
-              }
-
-              subSections.push({
-                title: subSectionTitle,
-                content: content.trim(),
-              });
-            }
-            // start next subsection
-            subSectionTitle = text;
-            content = "";
-
-            if (text === "定義") {
-              isInDefinition = true;
-              content += `\\begin{def.}[${sectionTitle}] \\`;
-            }
-            if (text === "例") {
-              isInExample = true;
-              content += `\\begin{ex.}[${sectionTitle}] \\`;
-            }
-          }
-        } else if (node.type === "image") {
-          // TODO: support image
-          // console.log(`image: ${node.src}`)
-        } else if (node.type === "link") {
-          // url
-          if (node.pathType === "absolute") {
-            // TODO: \cite
-          } else if (node.pathType === "relative") {
-            content += `\\textrm{${node.href}}`;
-          }
-        }
-      }
+      context.sectionTitle = block.text;
     }
-    content += "\n";
+    else if (block.type === "line") {
+      context = parseLine(block, context);
+    }
+    // context.content += "\n";
     // 'codeBlock', 'table' not supported
   }
 
-  if (isInDefinition) {
-    content += "\\end{def.}";
-    isInDefinition = false;
-  }
-  if (isInExample) {
-    content += "\\end{ex.}";
-    isInExample = false;
-  }
-
-  subSections.push({
-    title: subSectionTitle,
-    content: content,
+  context.subSections.push({
+    title: context.subSectionTitle,
+    content: context.content,
   });
 
   const section: LaTeXSubSection = {
-    title: sectionTitle,
-    subSections: subSections,
+    title: context.sectionTitle,
+    subSections: context.subSections,
   };
 
   return section;
 };
 
+const encodeLaTeXSubSubSection = (
+  subsubSection: LaTeXSubSubSection
+): string => {
+  let res = "";
+  if (subsubSection.title === "定義") {
+    res += `
+\\begin{def.}[${subsubSection.title}]
+${subsubSection.content}
+\\end{def.}
+`;
+  } else if (subsubSection.title === "例") {
+    res += `
+\\begin{ex.}[${subsubSection.title}]
+${subsubSection.content}
+\\end{ex.}
+`;
+  } else {
+    res += `\\subsection{${subsubSection.title}}\n`;
+  }
+
+  if (subsubSection.content === "") {
+    res += `\\todo{書く}`;
+  }
+
+  res += "\n";
+  return res;
+};
+
 export const docNodeToLaTeX = (section: LaTeXSubSection): string => {
   let res = "";
   res += `\\section{${section.title}}\n`;
+  const label = Buffer.from(section.title).toString("base64");
+  res += `\\label{${label}}`;
 
-  const subSections = section.subSections.filter(
+  const useSubSubSections = section.subSections.filter(
     (subSection) => !/参考.*/.test(subSection.title)
   );
-  for (let subSection of subSections) {
-    res += `\\subsection{${subSection.title}}\n`;
-    res += subSection.content;
-    res += "\n";
-  }
+  res += useSubSubSections
+    .map((subsubSection) => encodeLaTeXSubSubSection(subsubSection))
+    .join("\n");
   return res;
 };
 
 export class LaTeXEncoder implements DocNodeEncoder<string> {
-  encode(node: DocNode): string {
-    const docNode = pageToDocNode(node.page);
-    return docNodeToLaTeX(docNode);
+  encode(nodes: DocNode[]): string {
+    const pageTitles = new Set<string>();
+    for (let node of nodes) {
+      pageTitles.add(node.title);
+    }
+
+    return nodes
+      .map((node) => {
+        const section = pageToDocNode(node.page, pageTitles);
+        return docNodeToLaTeX(section);
+      })
+      .join("\n");
   }
 }
