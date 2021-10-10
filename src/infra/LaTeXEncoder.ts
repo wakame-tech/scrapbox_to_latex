@@ -1,14 +1,15 @@
 import { DecorationNode, Page } from "@progfay/scrapbox-parser";
+import { DocNode, DocNodeEncoder } from "../domain/model/documents";
 
 type LaTeXSubSection = {
-  title: string
-  subSections: LaTeXSubSubSection[]
-}
+  title: string;
+  subSections: LaTeXSubSubSection[];
+};
 
 type LaTeXSubSubSection = {
-  title: string
-  content: string
-}
+  title: string;
+  content: string;
+};
 
 // [** ] -> \subsection, [* ] -> \subsubsection
 const convertDecorationNode = (node: DecorationNode): { level: 'subsection' | 'subsubsection', text: string } => {
@@ -25,25 +26,24 @@ const convertDecorationNode = (node: DecorationNode): { level: 'subsection' | 's
   }
 }
 
-export const scrapBoxToLaTeXSection = (page: Page): LaTeXSubSection => {
-  const subSections: LaTeXSubSubSection[] = []
-  let sectionTitle = ''
-  let subSectionTitle = ''
-  let content = ''
+const pageToDocNode = (page: Page): LaTeXSubSection => {
+  const subSections: LaTeXSubSubSection[] = [];
+  let sectionTitle = "";
+  let subSectionTitle = "";
+  let content = "";
 
-  let isInEnumerate = false
-  let isInDefinition = false
-  let isInExample = false
-  let isInProps = false
+  let isInEnumerate = false;
+  let isInDefinition = false;
+  let isInExample = false;
+  let isInProps = false;
 
   for (let block of page) {
-    if (block.type === 'title') {
+    if (block.type === "title") {
       sectionTitle = block.text;
-    }
-    else if (block.type === "line") {
+    } else if (block.type === "line") {
       if (block.indent === 1) {
         if (!isInEnumerate) {
-          content += `\\begin{itemize}\n`
+          content += `\\begin{itemize}\n`;
         }
         isInEnumerate = true;
       } else {
@@ -59,40 +59,36 @@ export const scrapBoxToLaTeXSection = (page: Page): LaTeXSubSection => {
 
       for (let node of block.nodes) {
         // console.log(`${isInEnumerate} ${node.raw}`)
-        if (node.type === 'plain') {
-          content += node.text.trim()
-        }
-        else if (node.type === 'formula') {
-          content += ` $${node.formula}$ `
-        }
-        else if (node.type === 'code') {
-          content += ``
-        }
-        else if (node.type === 'strong') {
-          content += `\\textbf{${node.nodes[0].raw}}`
-        }
-        else if (node.type === 'decoration') {
-          const { level, text } = convertDecorationNode(node)
-          if (level === 'subsection') {
+        if (node.type === "plain") {
+          content += node.text.trim();
+        } else if (node.type === "formula") {
+          content += ` $${node.formula}$ `;
+        } else if (node.type === "code") {
+          content += ``;
+        } else if (node.type === "strong") {
+          content += `\\textbf{${node.nodes[0].raw}}`;
+        } else if (node.type === "decoration") {
+          const { level, text } = convertDecorationNode(node);
+          if (level === "subsection") {
             // end of subsection
-            if (subSectionTitle !== '') {
+            if (subSectionTitle !== "") {
               if (isInDefinition) {
-                content += '\\end{def.}'
-                isInDefinition = false
+                content += "\\end{def.}";
+                isInDefinition = false;
               }
               if (isInExample) {
-                content += '\\end{ex.}'
-                isInExample = false
+                content += "\\end{ex.}";
+                isInExample = false;
               }
 
               subSections.push({
                 title: subSectionTitle,
-                content: content.trim()
-              })
+                content: content.trim(),
+              });
             }
             // start next subsection
             subSectionTitle = text;
-            content = ''
+            content = "";
 
             if (text === "定義") {
               isInDefinition = true;
@@ -103,22 +99,20 @@ export const scrapBoxToLaTeXSection = (page: Page): LaTeXSubSection => {
               content += `\\begin{ex.}[${sectionTitle}] \\`;
             }
           }
-        }
-        else if (node.type === 'image') {
+        } else if (node.type === "image") {
           // TODO: support image
           // console.log(`image: ${node.src}`)
-        }
-        else if (node.type === 'link') {
+        } else if (node.type === "link") {
           // url
-          if (node.pathType === 'absolute') {
+          if (node.pathType === "absolute") {
             // TODO: \cite
-          } else if (node.pathType === 'relative') {
-            content += `\\textrm{${node.href}}`
+          } else if (node.pathType === "relative") {
+            content += `\\textrm{${node.href}}`;
           }
         }
       }
     }
-    content += '\n'
+    content += "\n";
     // 'codeBlock', 'table' not supported
   }
 
@@ -133,28 +127,35 @@ export const scrapBoxToLaTeXSection = (page: Page): LaTeXSubSection => {
 
   subSections.push({
     title: subSectionTitle,
-    content: content
-  })
+    content: content,
+  });
 
   const section: LaTeXSubSection = {
     title: sectionTitle,
     subSections: subSections,
-  }
+  };
 
   return section;
 };
 
-
-export const dumpLaTeX = (section: LaTeXSubSection): string => {
-  let res = '';
+export const docNodeToLaTeX = (section: LaTeXSubSection): string => {
+  let res = "";
   res += `\\section{${section.title}}\n`;
 
-  const subSections = section.subSections
-    .filter(subSection => !/参考.*/.test( subSection.title))
+  const subSections = section.subSections.filter(
+    (subSection) => !/参考.*/.test(subSection.title)
+  );
   for (let subSection of subSections) {
     res += `\\subsection{${subSection.title}}\n`;
     res += subSection.content;
     res += "\n";
   }
   return res;
+};
+
+export class LaTeXEncoder implements DocNodeEncoder<string> {
+  encode(node: DocNode): string {
+    const docNode = pageToDocNode(node.page);
+    return docNodeToLaTeX(docNode);
+  }
 }
