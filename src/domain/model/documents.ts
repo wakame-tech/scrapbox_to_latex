@@ -1,8 +1,8 @@
-import { Page } from "@progfay/scrapbox-parser";
+import { Page } from '@progfay/scrapbox-parser';
 
 export type DocNode = {
   title: string;
-  page: Page
+  page: Page;
   links: string[];
 };
 

@@ -1,4 +1,4 @@
-import TopologicalSort from "topological-sort";
+import TopologicalSort from 'topological-sort';
 
 export type Item<T> = {
   key: string;
@@ -7,18 +7,17 @@ export type Item<T> = {
 
 /**
  * topological sort wrapper
-*/
+ */
 export const topoSort = <T>(
-  items: Item<T>[], 
+  items: Item<T>[],
   ignoreKeys: string[],
   getDependencies: (item: Item<T>) => string[]
 ): Item<T>[] => {
   const res = {};
   const nodes = new Map<string, Item<T>>();
 
-  const useItems = items
-    .filter((item) => !ignoreKeys.includes(item.key));
-  const keys = useItems.map(i => i.key);
+  const useItems = items.filter((item) => !ignoreKeys.includes(item.key));
+  const keys = useItems.map((i) => i.key);
 
   for (let item of useItems) {
     res[item.key] = getDependencies(item);

@@ -3,11 +3,15 @@
   "version": "1.0.0",
   "main": "index.js",
   "license": "MIT",
+  "scripts": {
+    "fix": "prettier --write ./src/"
+  },
   "dependencies": {
     "@progfay/scrapbox-parser": "^7.1.0",
     "topological-sort": "^0.3.0"
   },
   "devDependencies": {
-    "@types/node": "^16.10.3"
+    "@types/node": "^16.10.3",
+    "prettier": "^2.4.1"
   }
 }

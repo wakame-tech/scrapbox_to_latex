@@ -1,4 +1,4 @@
-export { scrapBoxDumpToLaTeX } from './domain/convertor'
+export { scrapBoxDumpToLaTeX } from './domain/convertor';
 
-export * from './infra/ScrapBoxDecoder'
-export * from './infra/LaTeXEncoder'
+export * from './infra/ScrapBoxDecoder';
+export * from './infra/latex/LaTeXEncoder';
