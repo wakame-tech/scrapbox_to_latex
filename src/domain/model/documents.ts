@@ -1,5 +1,6 @@
 import { Page } from '@progfay/scrapbox-parser';
 
+// TODO
 export type DocNode = {
   title: string;
   page: Page;

@@ -1,6 +1,6 @@
 import { parse } from '@progfay/scrapbox-parser';
-import { DocNodeDecoder, DocNode } from '../domain/model/documents';
-import { ScrapBoxDump } from '../domain/model/scrapbox';
+import { DocNode, DocNodeDecoder } from '../../domain/model/documents';
+import { ScrapBoxDump } from '../../domain/model/scrapbox';
 
 export class ScrapBoxDecoder implements DocNodeDecoder<ScrapBoxDump> {
   decode(dump: ScrapBoxDump): DocNode[] {
