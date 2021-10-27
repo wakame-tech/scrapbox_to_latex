@@ -1,6 +1,7 @@
 import { DocNode, DocNodeEncoder } from '../../domain/model/documents';
-import { parsePage } from './PageParser';
-import { LaTeXSubSection, LaTeXSubSubSection } from './LaTeX';
+import { parsePage } from './PageParser.ts';
+import { LaTeXSubSection, LaTeXSubSubSection } from './LaTeX.ts';
+import { encode } from 'https://deno.land/std/encoding/base64.ts';
 
 /**
  * SubSubSection object ->  LaTeX subsubsection
@@ -40,7 +41,7 @@ ${subsubSection.content}
 const docNodeToLaTeX = (section: LaTeXSubSection): string => {
   let res = '';
   res += `\\section{${section.title}}\n`;
-  const label = Buffer.from(section.title).toString('base64');
+  const label = encode(section.title);
   res += `\\label{${label}}`;
 
   const useSubSubSections = section.subsubSections.filter(

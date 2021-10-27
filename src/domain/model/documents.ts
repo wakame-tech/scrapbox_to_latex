@@ -1,4 +1,4 @@
-import { Page } from '@progfay/scrapbox-parser';
+import { Page } from '../../mod'
 
 // TODO
 export type DocNode = {

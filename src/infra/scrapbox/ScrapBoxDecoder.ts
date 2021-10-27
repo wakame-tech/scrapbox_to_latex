@@ -1,4 +1,4 @@
-import { parse } from '@progfay/scrapbox-parser';
+import { parse } from '../../mod.ts'
 import { DocNode, DocNodeDecoder } from '../../domain/model/documents';
 import { ScrapBoxDump } from '../../domain/model/scrapbox';
 

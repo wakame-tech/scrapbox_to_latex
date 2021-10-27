@@ -1,5 +1,6 @@
-import { DecorationNode, Line, Page } from '@progfay/scrapbox-parser';
+import { DecorationNode, Line, Page } from '../../mod';
 import { LaTeXSubSection, LaTeXSubSubSection } from './LaTeX';
+import { encode } from 'https://deno.land/std/encoding/base64.ts';
 
 // [** ] -> \subsection, [* ] -> \subsubsection
 const convertDecorationNode = (
@@ -10,7 +11,7 @@ const convertDecorationNode = (
       level: 'subsection',
       text: node.nodes[0].raw,
     };
-  } else if (node.decos[0] === '*-1') {
+  } else {
     return {
       level: 'subsubsection',
       text: node.nodes[0].raw,
@@ -100,7 +101,7 @@ const parseLine = (block: Line, context: ParserContext): ParserContext => {
         // TODO: \cite
       } else if (node.pathType === 'relative') {
         if (context.links.has(node.href)) {
-          const id = Buffer.from(node.href).toString('base64');
+          const id = encode(node.href);
           context.content += `\\hyperref[${id}]{${node.href}}`;
         } else {
           context.content += `\\url{${node.href}}`;

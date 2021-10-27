@@ -1,6 +1,32 @@
 # scrapbox_to_latex
 A Scrapbox convertor that convert to latex's sections.
 
+## usage
+### scrapbox.json
+```json
+{
+  "name": "",
+  "displayName": "",
+  "pages": [
+    {
+      "title": "",
+      "id": "",
+      "lines": [
+        ...
+      ],
+      "linksLc": [
+        ...
+      ]
+    },
+    ...
+```
+
+### dump latex
+```
+deno run --allow-read https://pax.deno.dev/wakame-tech/scrapbox_to_latex/index.ts \
+  <dumped scrapbox json> --ignore-titles <comma-seped>
+```
+
 ## features
 - [x] Scrapbox Decoder
   - [x] plain

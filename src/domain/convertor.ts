@@ -1,24 +1,6 @@
-import { topoSort } from '../infra/TopoSort';
-import { DocNode, DocNodeDecoder, DocNodeEncoder } from './model/documents';
+import { DocNodeDecoder, DocNodeEncoder } from './model/documents';
 import { ScrapBoxDump } from './model/scrapbox';
-
-const sortDocNodesByTitle = (
-  docNodes: DocNode[],
-  ignoreTitles: string[]
-): DocNode[] => {
-  const nodes = docNodes.map((node) => {
-    return {
-      key: node.title,
-      value: node,
-    };
-  });
-  const sortedDocNodes = topoSort(
-    nodes,
-    ignoreTitles,
-    (item) => item.value.links
-  );
-  return sortedDocNodes.map((node) => node.value);
-};
+import { sortedWithDependency } from './Sorter.ts'
 
 export const scrapBoxDumpToLaTeX = (
   dump: ScrapBoxDump,
@@ -27,7 +9,6 @@ export const scrapBoxDumpToLaTeX = (
   encoder: DocNodeEncoder<string>
 ): string => {
   const docNodes = decoder.decode(dump);
-  const sortedDocNodes = sortDocNodesByTitle(docNodes, ignorePages);
-
+  const sortedDocNodes = sortedWithDependency(docNodes, ignorePages);
   return encoder.encode(sortedDocNodes);
 };
