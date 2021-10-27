@@ -23,8 +23,8 @@ A Scrapbox convertor that convert to latex's sections.
 
 ### dump latex
 ```
-deno run --allow-read https://pax.deno.dev/wakame-tech/scrapbox_to_latex/index.ts \
-  <dumped scrapbox json> --ignore-titles <comma-seped>
+deno run --allow-read https://pax.deno.dev/wakame-tech/scrapbox_to_latex/src/index.ts \
+  <dumped scrapbox json> --ignore-titles <comma separated titles to ignore>
 ```
 
 ## features
