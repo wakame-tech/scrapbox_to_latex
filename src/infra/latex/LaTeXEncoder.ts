@@ -1,8 +1,7 @@
 import { DocNode, DocNodeEncoder } from '../../domain/model/documents';
 import { parsePage } from './PageParser.ts';
 import { LaTeXSubSection, LaTeXSubSubSection } from './LaTeX.ts';
-import { encode } from 'https://deno.land/std/encoding/base64.ts';
-
+import { toHash } from './Hash.ts';
 /**
  * SubSubSection object ->  LaTeX subsubsection
  */
@@ -28,7 +27,7 @@ ${subsubSection.content}
   }
 
   if (subsubSection.content === '') {
-    res += `\\todo{書く}`;
+    // res += `\\todo{書く}`;
   }
 
   res += '\n';
@@ -41,7 +40,7 @@ ${subsubSection.content}
 const docNodeToLaTeX = (section: LaTeXSubSection): string => {
   let res = '';
   res += `\\section{${section.title}}\n`;
-  const label = encode(section.title);
+  const label = toHash(section.title);
   res += `\\label{${label}}`;
 
   const useSubSubSections = section.subsubSections.filter(
@@ -55,10 +54,10 @@ const docNodeToLaTeX = (section: LaTeXSubSection): string => {
 };
 
 /**
- * DocNode[] -> SubSection object
+ * DocNode[] -> SubSection s
  */
-export class LaTeXEncoder implements DocNodeEncoder<string> {
-  encode(nodes: DocNode[]): string {
+export class LaTeXEncoder implements DocNodeEncoder<{ path: string, content: string }[]> {
+  encode(nodes: DocNode[]): { path: string, content: string }[] {
     const pageTitles = new Set<string>();
     for (let node of nodes) {
       pageTitles.add(node.title);
@@ -67,8 +66,10 @@ export class LaTeXEncoder implements DocNodeEncoder<string> {
     return nodes
       .map((node) => {
         const section = parsePage(node.page, pageTitles);
-        return docNodeToLaTeX(section);
+        return {
+          path: section.title,
+          content: docNodeToLaTeX(section),
+        }
       })
-      .join('\n');
   }
 }

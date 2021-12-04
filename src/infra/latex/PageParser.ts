@@ -1,6 +1,6 @@
 import { DecorationNode, Line, Page } from '../../mod';
 import { LaTeXSubSection, LaTeXSubSubSection } from './LaTeX';
-import { encode } from 'https://deno.land/std/encoding/base64.ts';
+import { toHash } from './Hash.ts';
 
 // [** ] -> \subsection, [* ] -> \subsubsection
 const convertDecorationNode = (
@@ -50,7 +50,7 @@ const flushSubSubSection = (context: ParserContext): ParserContext => {
 const parseLine = (block: Line, context: ParserContext): ParserContext => {
   if (block.indent >= 1) {
     if (!context.isInEnumerate) {
-      context.content += `\\begin{itemize} \\\\ \n`;
+      context.content += `\\begin{itemize} \n`;
     }
     context.isInEnumerate = true;
   } else {
@@ -61,7 +61,7 @@ const parseLine = (block: Line, context: ParserContext): ParserContext => {
   }
 
   if (context.isInEnumerate) {
-    context.content += `  \\item `;
+    context.content += `\t\\item `;
   }
 
   // console.log(`${context.isInEnumerate} ${block.nodes.map((n) => n.raw).join(" ")}`);
@@ -70,10 +70,14 @@ const parseLine = (block: Line, context: ParserContext): ParserContext => {
     if (node.type === 'plain' && node.text.trim().length !== 0) {
       context.content += node.text.trim();
     } else if (node.type === 'formula') {
-      if (block.nodes.length === 1 && node.formula.length >= 20) {
-        context.content += `\n\\[\n${node.formula}\n\\]`;
+      const formula = node.formula
+        .replace(/(?:\{\})?\^\\exists?/g, '{}^{\\exists}')
+        .replace(/(?:\{\})?\^\\forall/g, '{}^{\\forall}');
+
+      if (block.nodes.length === 1 && formula.length >= 20) {
+        context.content += `\n\\[\n${formula}\n\\]`;
       } else {
-        context.content += ` $${node.formula}$ `;
+        context.content += ` $${formula}$ `;
       }
     } else if (node.type === 'code') {
       // TODO: support code block
@@ -101,7 +105,7 @@ const parseLine = (block: Line, context: ParserContext): ParserContext => {
         // TODO: \cite
       } else if (node.pathType === 'relative') {
         if (context.links.has(node.href)) {
-          const id = encode(node.href);
+          const id = toHash(node.href);
           context.content += `\\hyperref[${id}]{${node.href}}`;
         } else {
           context.content += `\\url{${node.href}}`;
@@ -124,6 +128,8 @@ export const parsePage = (page: Page, links: Set<string>): LaTeXSubSection => {
   };
 
   for (let block of page) {
+    // console.log(block);
+
     if (block.type === 'title') {
       context.sectionTitle = block.text;
     } else if (block.type === 'line') {
@@ -136,12 +142,19 @@ export const parsePage = (page: Page, links: Set<string>): LaTeXSubSection => {
     }
   }
 
+  if (context.isInEnumerate) {
+    context.content += `\\end{itemize}`;
+    context.isInEnumerate = false;
+  }
+
   context = flushSubSubSection(context);
 
   const section: LaTeXSubSection = {
     title: context.sectionTitle,
     subsubSections: context.subSections,
   };
+
+  // console.log(section);
 
   return section;
 };
