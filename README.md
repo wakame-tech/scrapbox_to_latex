@@ -31,8 +31,9 @@ deno run --allow-read https://pax.deno.dev/wakame-tech/scrapbox_to_latex/src/ind
 - [x] Scrapbox Decoder
   - [x] plain
   - [x] formula
+  - [x] code
   - [ ] table
-  - [ ] image
+  - [x] image(from Gyazo only)
 - [x] LaTeX Endoer
   - [x] section, subsection
   - [x] hyperref

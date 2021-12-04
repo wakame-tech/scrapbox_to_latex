@@ -13,7 +13,7 @@ export const topoSort = <T>(
   ignoreKeys: string[],
   getDependencies: (item: Item<T>) => string[]
 ): Item<T>[] => {
-  const res = {};
+  const res: Record<string, string[]> = {};
   const nodes = new Map<string, Item<T>>();
 
   const useItems = items.filter((item) => !ignoreKeys.includes(item.id));
@@ -24,7 +24,7 @@ export const topoSort = <T>(
     nodes.set(item.id, item);
   }
 
-  const graph = new KahnGraph();
+  const graph = new KahnGraph<Item<T>>();
 
   for (let node of nodes.values()) {
     graph.addNode(node);
@@ -32,8 +32,8 @@ export const topoSort = <T>(
 
   for (let item of useItems) {
     for (let link of getDependencies(item)) {
-      if (item.id !== link && keys.includes(link)) {
-        graph.addEdge(nodes.get(item.id), nodes.get(link));
+      if (item.id !== link && keys.includes(link) && nodes.has(item.id) && nodes.has(link)) {
+        graph.addEdge(nodes.get(item.id)!, nodes.get(link)!);
       }
     }
   }

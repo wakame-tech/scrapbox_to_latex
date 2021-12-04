@@ -1,6 +1,6 @@
 import { parse } from '../../mod.ts'
-import { DocNode, DocNodeDecoder } from '../../domain/model/documents';
-import { ScrapBoxDump } from '../../domain/model/scrapbox';
+import { DocNode, DocNodeDecoder } from '../../domain/model/documents.ts';
+import { ScrapBoxDump } from '../../domain/model/scrapbox.ts';
 
 export class ScrapBoxDecoder implements DocNodeDecoder<ScrapBoxDump> {
   decode(dump: ScrapBoxDump): DocNode[] {

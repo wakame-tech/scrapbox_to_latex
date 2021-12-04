@@ -5,7 +5,7 @@ export const sortedWithDependency = (
   docNodes: DocNode[],
   ignoreTitles: string[]
 ): DocNode[] => {
-  const kvs: Item[] = docNodes.map((node) => {
+  const kvs: Item<DocNode>[] = docNodes.map((node) => {
     return {
       id: node.title,
       value: node,

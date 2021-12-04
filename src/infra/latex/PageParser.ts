@@ -1,6 +1,8 @@
-import { DecorationNode, Line, Page } from '../../mod';
-import { LaTeXSubSection, LaTeXSubSubSection } from './LaTeX';
+import { DecorationNode, Line, Page } from '../../mod.ts';
+import { LaTeXSubSection, LaTeXSubSubSection } from './LaTeX.ts';
 import { toHash } from './Hash.ts';
+import { urlToPath } from '../scrapbox/ImageDownloader.ts';
+import { basename } from 'https://deno.land/std/path/mod.ts';
 
 // [** ] -> \subsection, [* ] -> \subsubsection
 const convertDecorationNode = (
@@ -97,7 +99,16 @@ const parseLine = (block: Line, context: ParserContext): ParserContext => {
       // start next subsection
       context.subSectionTitle = text;
     } else if (node.type === 'image') {
-      // TODO: support image
+      const { src } = node;
+      const projectNamePrefix = '\\Proj';
+      const path = `${projectNamePrefix}/res/${basename(urlToPath(src))}`;
+      context.content += `
+\\begin{figure}[H]
+  \\centering
+  \\includegraphics[width=\\linewidth]{${path}}
+\\end{figure}
+
+`;
       // console.log(`image: ${node.src}`)
     } else if (node.type === 'link') {
       // url
@@ -128,15 +139,18 @@ export const parsePage = (page: Page, links: Set<string>): LaTeXSubSection => {
   };
 
   for (let block of page) {
-    // console.log(block);
-
     if (block.type === 'title') {
       context.sectionTitle = block.text;
     } else if (block.type === 'line') {
       context = parseLine(block, context);
       context.content += '\n';
     } else if (block.type === 'codeBlock') {
-      // TODO: support code block
+      const { fileName, content } = block;
+      context.content += `
+\\begin{lstlisting}[caption=${fileName}]
+${content}
+\\end{lstlisting}
+`;
     } else if (block.type === 'table') {
       // TODO: support table
     }

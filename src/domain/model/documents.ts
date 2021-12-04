@@ -1,4 +1,4 @@
-import { Page } from '../../mod'
+import { Page } from '../../mod.ts'
 
 // TODO
 export type DocNode = {
@@ -6,6 +6,11 @@ export type DocNode = {
   page: Page;
   links: string[];
 };
+
+export type Output = {
+  path: string;
+  content: string;
+}
 
 export interface DocNodeDecoder<T> {
   decode(item: T): DocNode[];

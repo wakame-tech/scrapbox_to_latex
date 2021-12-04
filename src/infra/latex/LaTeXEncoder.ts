@@ -1,5 +1,6 @@
-import { DocNode, DocNodeEncoder } from '../../domain/model/documents';
+import { DocNode, DocNodeEncoder } from '../../domain/model/documents.ts';
 import { parsePage } from './PageParser.ts';
+import { Output } from '../../domain/model/documents.ts'
 import { LaTeXSubSection, LaTeXSubSubSection } from './LaTeX.ts';
 import { toHash } from './Hash.ts';
 /**
@@ -56,8 +57,8 @@ const docNodeToLaTeX = (section: LaTeXSubSection): string => {
 /**
  * DocNode[] -> SubSection s
  */
-export class LaTeXEncoder implements DocNodeEncoder<{ path: string, content: string }[]> {
-  encode(nodes: DocNode[]): { path: string, content: string }[] {
+export class LaTeXEncoder implements DocNodeEncoder<Output[]> {
+  encode(nodes: DocNode[]): Output[] {
     const pageTitles = new Set<string>();
     for (let node of nodes) {
       pageTitles.add(node.title);
