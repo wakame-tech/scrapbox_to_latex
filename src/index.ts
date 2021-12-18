@@ -1,69 +1,53 @@
 import { parse } from 'https://deno.land/std@0.66.0/flags/mod.ts';
-import { scrapBoxDumpToLaTeX, convertFromText } from './domain/convertor.ts';
-import { LaTeXEncoder } from './infra/latex/LaTeXEncoder.ts';
-import { ScrapBoxDecoder } from './infra/scrapbox/ScrapBoxDecoder.ts';
-import { basename } from 'https://deno.land/std/path/mod.ts';
+import { Chapter, Section } from './model/documents.ts';
+import { ScrapBoxDump } from './scrapbox/types.ts';
+import { encodeSection } from './latex/sectionEncoder.ts';
+import { decodeSection } from './scrapbox/decoder.ts';
+import { topoSort, Item } from './infra/TopoSort.ts';
 
-const dumpLaTexFilesSync = (
-  projectName: string,
-  outputs: { path: string; content: string }[]
-) => {
+const sortedSectionsWithDependency = (sections: Section[]): Section[] => {
+  const items: Item<Section>[] = sections.map((section) => {
+    return {
+      id: section.title,
+      value: section,
+    };
+  });
+  const sorted = topoSort(items, [], (item) => item.value.backLinks);
+  return sorted.map((item) => item.value);
+};
+const dumpFiles = async (chapter: Chapter): Promise<void> => {
+  const dir = `./${chapter.title}`;
   const includeLaTeXPathPrefix = '\\Proj';
+
   let indexTex = '';
-  for (const { path, content } of outputs) {
-    const sanitizedPath = path
+  for (const section of chapter.sections) {
+    const sanitizedPath = section.path
       .replace(/[\\/:\*\?"<>\|]/g, '')
       .replace(/ /g, '_');
-    const filePath = `./${projectName}/${sanitizedPath}.tex`;
+    const filePath = `./${dir}/${sanitizedPath}.tex`;
+    const content = encodeSection(section);
     indexTex += `\\input{${includeLaTeXPathPrefix}/${sanitizedPath}}\n`;
-    console.log(`- ${filePath}`);
+    // console.log(`- ${filePath}`);
     Deno.writeTextFileSync(filePath, content);
   }
-  Deno.writeTextFileSync(`./${projectName}/index.tex`, indexTex);
+  Deno.writeTextFileSync(`./${dir}/index.tex`, indexTex);
 };
 
-const cmdConvertFiles = async (
-  jsonPath: string,
-  ignoreTitles: string[],
-  dryRun: boolean
-) => {
-  const dump = JSON.parse(Deno.readTextFileSync(jsonPath));
-  const projectName = basename(jsonPath, '.json');
-  // console.log(ignoreTitles)
-  const outputs = await scrapBoxDumpToLaTeX(
-    dump,
-    ignoreTitles,
-    new ScrapBoxDecoder(),
-    new LaTeXEncoder()
-  );
-
-  if (dryRun) {
-    Deno.exit(0);
+const main = async () => {
+  const args = parse(Deno.args);
+  if (args._[0] === null) {
+    console.error('no json file path');
+    Deno.exit(1);
   }
-  dumpLaTexFilesSync(projectName, outputs);
+
+  const file = Deno.readTextFileSync(args._[0].toString());
+  const dump: ScrapBoxDump = JSON.parse(file);
+  const i = 4;
+  const sections = dump.pages.slice(i, i + 1).map((page) => decodeSection(page));
+  const sortedSections = sortedSectionsWithDependency(sections);
+  console.log(JSON.stringify(sortedSections[0], null, 2));
+  const tex = encodeSection(sortedSections[0]);
+  console.log(tex);
 };
 
-const cmdConvertSinglePage = async (path: string) => {
-  const pageContent = Deno.readTextFileSync(path);
-  const output = await convertFromText(pageContent, new LaTeXEncoder());
-  // console.log(output.content);
-};
-
-// const url = "https://gyazo.com/88c380d94366b104b820d5251a956c79"
-// await downloadImage('', url);
-// Deno.exit(0);
-
-const args = parse(Deno.args);
-const ignoreTitles = args['ignore-titles']?.split(',') ?? [];
-const dryRun = !!args['dry-run'];
-
-if (args['_']?.length === 1 && args['_'][0].toString().endsWith('.json')) {
-  const jsonPath = args['_']?.[0].toString();
-  if (!jsonPath) {
-    throw new Error('jsonPath empty');
-  }
-  cmdConvertFiles(jsonPath, ignoreTitles, dryRun);
-} else if (args['_']?.length === 1) {
-  const path = args['_']?.[0].toString();
-  cmdConvertSinglePage(path);
-}
+main();
