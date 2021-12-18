@@ -93,7 +93,6 @@ export type Block =
 export interface Section {
   type: 'section';
   title: string;
-  path: string;
   blocks: Block[];
   backLinks: string[];
   bibTeX: string;

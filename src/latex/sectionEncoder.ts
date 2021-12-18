@@ -1,4 +1,4 @@
-import { urlToPath } from '../scrapbox/ImageDownloader.ts';
+import { urlToPath } from '../scrapbox/download.ts';
 import { basename } from 'https://deno.land/std/path/mod.ts';
 import {
   Block,
@@ -13,7 +13,7 @@ type InlineTextKeyedMap = MapDiscriminatedUnion<InlineText, 'type'>;
 const inlineTextParsers: {
   [K in keyof InlineTextKeyedMap]: (node: InlineTextKeyedMap[K]) => string;
 } = {
-  plainText: (plainText) => plainText.content.trim(),
+  plainText: (plainText) => plainText.content.trim().replace(/_/g, '\\_'),
   strong: (strong) => `\\textbf{${strong.content}}`,
   inlineFormula: (inlineFormula) => `$${inlineFormula.content}$ `,
   citation: (citation) => `\\cite{${citation.key}}`,
@@ -59,7 +59,7 @@ const blockParsers: {
     }
     let res = `\\begin{itemize} \n`;
     res += enumerate.items.map((item) => `  \\item ${item}`).join('\n');
-    res += `\\end{itemize}`;
+    res += `\\end{itemize}\n`;
     return res;
   },
   code: (code) => {
@@ -70,7 +70,7 @@ ${code.code}
     `;
   },
   formula: (formula) => {
-    return `\n\\[\n${formula.formula}\n\\]`;
+    return `\n\\[\n${formula.formula}\n\\]\n`;
   },
   header: (header) => {
     const toHeaderTag = (
@@ -86,7 +86,7 @@ ${code.code}
     const label = `\\label{${header.key}}`;
     const text = inlineTextsEncoder(header.content);
     const headerTag = `\\${toHeaderTag(header.level)}{${text}}`;
-    return `${headerTag}${label}`;
+    return `\n\n${headerTag}${label}\n`;
   },
   scopedBlock: (scopedBlock) => {
     console.warn('scopedBlock is not supported');
@@ -97,11 +97,11 @@ ${code.code}
 export const encodeSection = (section: Section): string => {
   let res = '';
   for (const block of section.blocks) {
+    if (block.type === 'header' && block.content.texts[0].type === 'plainText' && block.content.texts[0].content === '参考文献') {
+      break;
+    }
     // @ts-ignore
     res += blockParsers[block.type](block);
-    if (block.type !== 'inlineTexts') {
-      res += '\n';
-    }
   }
   return res;
 };

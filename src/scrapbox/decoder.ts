@@ -23,8 +23,10 @@ import {
 import { MapDiscriminatedUnion } from '../util/typeutil.ts';
 import { toHash } from '../util/Hash.ts';
 import { ScrapBoxPage } from './types.ts';
+import { downloadImage } from './download.ts';
 
 interface ParserContext {
+  dir: string;
   title: string;
   links: Set<string>;
   bibTeX: string;
@@ -37,39 +39,27 @@ const blockParsers: {
   [K in keyof SBlockKeyedMap]: (
     ctx: ParserContext,
     block: SBlockKeyedMap[K]
-  ) => ParserContext;
+  ) => Promise<ParserContext>;
 } = {
-  title: (ctx, title) => {
+  title: async (ctx, title) => {
     ctx.title = title.text;
     return ctx;
   },
-  line: (ctx, line) => {
-    // indentation
-    if (line.indent > 0) {
-      const texts: InlineText[] = [];
-      for (let node of line.nodes) {
-        // TODO:
-      }
-      const block: Enumerate = {
-        type: 'enumerate',
-        level: line.indent,
-        items: [],
-      };
-      ctx.blocks.push(block);
-    }
+  line: async (ctx, line) => {
+    // TODO: support enumerate
     for (let node of line.nodes) {
       // @ts-ignore
-      ctx = nodeParsers[node.type](ctx, node);
+      ctx = await nodeParsers[node.type](ctx, node);
     }
     return ctx;
   },
-  codeBlock: (ctx, code) => {
+  codeBlock: async (ctx, code) => {
     const { fileName, content } = code;
     if (fileName === 'bib') {
-      console.log('bib: ${content}');
+      // console.log('bib: ${content}');
       ctx.bibTeX = content.trim();
     } else {
-      console.log('code: ${content}');
+      // console.log('code: ${content}');
       ctx.blocks.push({
         type: 'code',
         caption: fileName,
@@ -78,7 +68,7 @@ const blockParsers: {
     }
     return ctx;
   },
-  table: (ctx, table) => {
+  table: async (ctx, table) => {
     console.warn('table: ${table} is not supported');
     // TODO:
     return ctx;
@@ -90,25 +80,33 @@ const nodeParsers: {
   [K in keyof SNodeKeyedMap]: (
     ctx: ParserContext,
     node: SNodeKeyedMap[K]
-  ) => ParserContext;
+  ) => Promise<ParserContext>;
 } = {
-  quote: (ctx, quote) => {
-    console.warn('quote: ${quote} not supported');
+  quote: async (ctx, quote) => {
+    ctx.blocks.push({
+      type: 'inlineTexts',
+      texts: [
+        {
+          type: 'plainText',
+          content: quote.nodes[0].raw,
+        },
+      ],
+    });
     return ctx;
   },
-  helpfeel: (ctx, helpfeel) => {
+  helpfeel: async (ctx, helpfeel) => {
     console.warn('helpfeel: ${helpfeel} not supported');
     return ctx;
   },
-  strongImage: (ctx, strongImage) => {
+  strongImage: async (ctx, strongImage) => {
     console.warn('strongImage: ${strongImage} not supported');
     return ctx;
   },
-  strongIcon: (ctx, strongIcon) => {
+  strongIcon: async (ctx, strongIcon) => {
     console.warn('strongIcon: ${strongIcon} not supported');
     return ctx;
   },
-  strong: (ctx, strong) => {
+  strong: async (ctx, strong) => {
     ctx.blocks.push({
       type: 'inlineTexts',
       texts: [
@@ -120,7 +118,7 @@ const nodeParsers: {
     });
     return ctx;
   },
-  formula: (ctx, formula) => {
+  formula: async (ctx, formula) => {
     const content = formula.formula
       .replace(/(?:\{\})?\^\\exists?/g, '{}^{\\exists}')
       .replace(/(?:\{\})?\^\\forall/g, '{}^{\\forall}');
@@ -143,11 +141,11 @@ const nodeParsers: {
     }
     return ctx;
   },
-  decoration: (ctx, decoration) => {
+  decoration: async (ctx, decoration) => {
     ctx.blocks.push(decodeHeader(decoration));
     return ctx;
   },
-  code: (ctx, code) => {
+  code: async (ctx, code) => {
     ctx.blocks.push({
       type: 'inlineTexts',
       texts: [
@@ -159,24 +157,35 @@ const nodeParsers: {
     });
     return ctx;
   },
-  commandLine: (ctx, commandLine) => {
+  commandLine: async (ctx, commandLine) => {
     console.warn('commandLine: ${commandLine} not supported');
     return ctx;
   },
-  blank: (ctx, blank) => {
+  blank: async (ctx, blank) => {
     return ctx;
   },
-  image: (ctx, image) => {
+  image: async (ctx, image) => {
+    console.log(`image: ${image.src} found`);
+    const localPath = await downloadImage(`${ctx.dir}/res`, image.src);
     ctx.blocks.push({
       type: 'image',
       caption: '',
       url: image.src,
+      localPath,
     } as Image);
     return ctx;
   },
-  link: (ctx, link) => {
+  link: async (ctx, link) => {
     if (link.pathType === 'absolute') {
-      console.warn('absolute link: ${link} not supported');
+      ctx.blocks.push({
+        type: 'inlineTexts',
+        texts: [
+          {
+            type: 'plainText',
+            content: link.href,
+          },
+        ],
+      });
     } else if (link.pathType === 'relative') {
       if (ctx.links.has(link.href)) {
         ctx.blocks.push({
@@ -195,7 +204,8 @@ const nodeParsers: {
           texts: [
             {
               type: 'plainText',
-              content: `\\url{${link.href}}`,
+              // content: `\\url{${link.href}}`,
+              content: `${link.href}`,
             },
           ],
         });
@@ -203,19 +213,19 @@ const nodeParsers: {
     }
     return ctx;
   },
-  googleMap: (ctx, googleMap) => {
+  googleMap: async (ctx, googleMap) => {
     console.warn('googleMap: ${googleMap} not supported');
     return ctx;
   },
-  icon: (ctx, icon) => {
+  icon: async (ctx, icon) => {
     console.warn('icon: ${icon} not supported');
     return ctx;
   },
-  hashTag: (ctx, hashTag) => {
+  hashTag: async (ctx, hashTag) => {
     console.warn('hashTag: ${hashTag} not supported');
     return ctx;
   },
-  plain: (ctx, plain) => {
+  plain: async (ctx, plain) => {
     ctx.blocks.push({
       type: 'inlineTexts',
       texts: [
@@ -259,12 +269,15 @@ const decodeHeader = (node: DecorationNode): Header => {
   };
 };
 
-export const decodeSection = (dumpPage: ScrapBoxPage): Section => {
+export const decodeSection = async (
+  dir: string,
+  dumpPage: ScrapBoxPage
+): Promise<Section> => {
   const lines = dumpPage.lines.join('\n');
-  console.log(lines);
   const page = parse(lines);
   let ctx: ParserContext = {
-    links: new Set(),
+    dir,
+    links: new Set(dumpPage.linksLc),
     blocks: [],
     title: '',
     bibTeX: '',
@@ -288,14 +301,13 @@ export const decodeSection = (dumpPage: ScrapBoxPage): Section => {
 
   for (let block of page) {
     // @ts-ignore
-    ctx = blockParsers[block.type](ctx, block);
+    ctx = await blockParsers[block.type](ctx, block);
   }
 
   // TODO: support scoped block
 
   return {
     type: 'section',
-    path: '',
     title: ctx.title,
     blocks: ctx.blocks,
     backLinks: Array.from(ctx.links.values()),

@@ -3,7 +3,7 @@ import { Chapter, Section } from './model/documents.ts';
 import { ScrapBoxDump } from './scrapbox/types.ts';
 import { encodeSection } from './latex/sectionEncoder.ts';
 import { decodeSection } from './scrapbox/decoder.ts';
-import { topoSort, Item } from './infra/TopoSort.ts';
+import { topoSort, Item } from './util/TopoSort.ts';
 
 const sortedSectionsWithDependency = (sections: Section[]): Section[] => {
   const items: Item<Section>[] = sections.map((section) => {
@@ -15,22 +15,34 @@ const sortedSectionsWithDependency = (sections: Section[]): Section[] => {
   const sorted = topoSort(items, [], (item) => item.value.backLinks);
   return sorted.map((item) => item.value);
 };
+
 const dumpFiles = async (chapter: Chapter): Promise<void> => {
-  const dir = `./${chapter.title}`;
+  const texs: { path: string; tex: string }[] = [];
+  const dir = `${chapter.title}`;
   const includeLaTeXPathPrefix = '\\Proj';
 
-  let indexTex = '';
   for (const section of chapter.sections) {
-    const sanitizedPath = section.path
-      .replace(/[\\/:\*\?"<>\|]/g, '')
+    const tex = encodeSection(section);
+    const sanitizedPath = section.title
+      .replace(/[$\\/:\*\?"<>\|]/g, '')
       .replace(/ /g, '_');
-    const filePath = `./${dir}/${sanitizedPath}.tex`;
-    const content = encodeSection(section);
-    indexTex += `\\input{${includeLaTeXPathPrefix}/${sanitizedPath}}\n`;
-    // console.log(`- ${filePath}`);
-    Deno.writeTextFileSync(filePath, content);
+    const path = `${dir}/${sanitizedPath}.tex`;
+    texs.push({
+      path,
+      tex,
+    });
   }
-  Deno.writeTextFileSync(`./${dir}/index.tex`, indexTex);
+
+  let indexTex = '';
+  const indexTeXPath = `${dir}/index.tex`;
+
+  Deno.mkdirSync(dir, { recursive: true });
+  for (const { path, tex } of texs) {
+    indexTex += `\\input{${includeLaTeXPathPrefix}/${path}}\n`;
+    console.log(`dump ${path}`);
+    Deno.writeTextFileSync(path, tex);
+  }
+  Deno.writeTextFileSync(indexTeXPath, indexTex);
 };
 
 const main = async () => {
@@ -42,12 +54,16 @@ const main = async () => {
 
   const file = Deno.readTextFileSync(args._[0].toString());
   const dump: ScrapBoxDump = JSON.parse(file);
-  const i = 4;
-  const sections = dump.pages.slice(i, i + 1).map((page) => decodeSection(page));
+
+  const dir = `${dump.name}`;
+  Deno.mkdirSync(`${dir}/res`, { recursive: true });
+  const sections = await Promise.all(dump.pages.map((page) => decodeSection(dir, page)));
   const sortedSections = sortedSectionsWithDependency(sections);
-  console.log(JSON.stringify(sortedSections[0], null, 2));
-  const tex = encodeSection(sortedSections[0]);
-  console.log(tex);
+  dumpFiles({
+    type: 'chapter',
+    title: dump.name,
+    sections: sortedSections,
+  });
 };
 
 main();
