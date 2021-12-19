@@ -13,7 +13,7 @@ type InlineTextKeyedMap = MapDiscriminatedUnion<InlineText, 'type'>;
 const inlineTextParsers: {
   [K in keyof InlineTextKeyedMap]: (node: InlineTextKeyedMap[K]) => string;
 } = {
-  plainText: (plainText) => plainText.content.trim().replace(/_/g, '\\_'),
+  plainText: (plainText) => plainText.content.trim(),
   strong: (strong) => `\\textbf{${strong.content}}`,
   inlineFormula: (inlineFormula) => `$${inlineFormula.content}$ `,
   citation: (citation) => `\\cite{${citation.key}}`,
