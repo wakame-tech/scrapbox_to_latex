@@ -95,6 +95,7 @@ export interface Section {
   title: string;
   blocks: Block[];
   backLinks: string[];
+  bibKey: string;
   bibTeX: string;
   bibliography: (Citation | Backlink)[];
 }

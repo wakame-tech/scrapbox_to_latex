@@ -5,6 +5,7 @@ import {
   Node,
   Decoration,
   parse,
+  LinkNode,
 } from '../mod.ts';
 import {
   Section,
@@ -24,11 +25,13 @@ import { MapDiscriminatedUnion } from '../util/typeutil.ts';
 import { toHash } from '../util/Hash.ts';
 import { ScrapBoxPage } from './types.ts';
 import { downloadImage } from './download.ts';
+import { extractBibTeXKey } from '../util/BibTeX.ts';
 
 interface ParserContext {
   dir: string;
   title: string;
   links: Set<string>;
+  bibKey: string;
   bibTeX: string;
   blocks: Block[];
   isInEnumerate: boolean;
@@ -51,13 +54,28 @@ const blockParsers: {
       // @ts-ignore
       ctx = await nodeParsers[node.type](ctx, node);
     }
+    if (line.indent !== 0) {
+      ctx.blocks.push({
+        type: 'inlineTexts',
+        texts: [
+          {
+            type: 'plainText',
+            content: '\\\\ \n',
+          },
+        ],
+      });
+    }
     return ctx;
   },
   codeBlock: async (ctx, code) => {
     const { fileName, content } = code;
     if (fileName === 'bib') {
-      // console.log('bib: ${content}');
-      ctx.bibTeX = content.trim();
+      const key = extractBibTeXKey(content);
+      if (key) {
+        ctx.bibKey = key;
+        ctx.bibTeX = content.trim();
+        console.log(`bib: ${ctx.bibKey} found`);
+      }
     } else {
       // console.log('code: ${content}');
       ctx.blocks.push({
@@ -73,6 +91,38 @@ const blockParsers: {
     // TODO:
     return ctx;
   },
+};
+
+const decodeLink = (ctx: ParserContext, link: LinkNode): ParserContext => {
+  // URL or unlinked backlink
+  if (
+    link.pathType === 'absolute' ||
+    (link.pathType === 'relative' && !ctx.links.has(link.href))
+  ) {
+    ctx.blocks.push({
+      type: 'inlineTexts',
+      texts: [
+        {
+          type: 'plainText',
+          content: `${link.content}(\\url{${link.href}})`,
+        },
+      ],
+    });
+  }
+  // Backlink
+  else {
+    ctx.blocks.push({
+      type: 'inlineTexts',
+      texts: [
+        {
+          type: 'backlink',
+          name: link.href,
+          key: toHash(link.href),
+        } as Backlink,
+      ],
+    });
+  }
+  return ctx;
 };
 
 type SNodeKeyedMap = MapDiscriminatedUnion<Node, 'type'>;
@@ -176,42 +226,7 @@ const nodeParsers: {
     return ctx;
   },
   link: async (ctx, link) => {
-    if (link.pathType === 'absolute') {
-      ctx.blocks.push({
-        type: 'inlineTexts',
-        texts: [
-          {
-            type: 'plainText',
-            content: link.href,
-          },
-        ],
-      });
-    } else if (link.pathType === 'relative') {
-      if (ctx.links.has(link.href)) {
-        ctx.blocks.push({
-          type: 'inlineTexts',
-          texts: [
-            {
-              type: 'backlink',
-              name: link.href,
-              key: toHash(link.href),
-            } as Backlink,
-          ],
-        });
-      } else {
-        ctx.blocks.push({
-          type: 'inlineTexts',
-          texts: [
-            {
-              type: 'plainText',
-              // content: `\\url{${link.href}}`,
-              content: `${link.href}`,
-            },
-          ],
-        });
-      }
-    }
-    return ctx;
+    return decodeLink(ctx, link);
   },
   googleMap: async (ctx, googleMap) => {
     console.warn('googleMap: ${googleMap} not supported');
@@ -222,7 +237,7 @@ const nodeParsers: {
     return ctx;
   },
   hashTag: async (ctx, hashTag) => {
-    console.warn('hashTag: ${hashTag} not supported');
+    console.warn(`hashTag: ${hashTag.href} not supported`);
     return ctx;
   },
   plain: async (ctx, plain) => {
@@ -280,6 +295,7 @@ export const decodeSection = async (
     links: new Set(dumpPage.linksLc),
     blocks: [],
     title: '',
+    bibKey: '',
     bibTeX: '',
     isInEnumerate: false,
   };
@@ -311,6 +327,7 @@ export const decodeSection = async (
     title: ctx.title,
     blocks: ctx.blocks,
     backLinks: Array.from(ctx.links.values()),
+    bibKey: ctx.bibKey,
     bibTeX: ctx.bibTeX,
     bibliography: [],
   };

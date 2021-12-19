@@ -1,5 +1,5 @@
 import { parse } from 'https://deno.land/std@0.66.0/flags/mod.ts';
-import { Chapter, Section } from './model/documents.ts';
+import { Chapter, InlineTexts, Section } from './model/documents.ts';
 import { ScrapBoxDump } from './scrapbox/types.ts';
 import { encodeSection } from './latex/sectionEncoder.ts';
 import { decodeSection } from './scrapbox/decoder.ts';
@@ -57,7 +57,32 @@ const main = async () => {
 
   const dir = `${dump.name}`;
   Deno.mkdirSync(`${dir}/res`, { recursive: true });
-  const sections = await Promise.all(dump.pages.map((page) => decodeSection(dir, page)));
+  const sections = await Promise.all(
+    dump.pages.map((page) => decodeSection(dir, page))
+  );
+
+  // backlink loopup
+  for (const section of sections) {
+    for (let i = 0; i < section.blocks.length; i++) {
+      const block = section.blocks[i];
+      if (block.type === 'inlineTexts') {
+        for (let j = 0; j < block.texts.length; j++) {
+          const text = block.texts[j];
+          if (text.type === 'backlink') {
+            const lookUp = sections.find((s) => s.title === text.key);
+            if (lookUp && lookUp.bibKey) {
+              console.log(`backlink lookup: ${text.name} -> ${lookUp.bibKey}`);
+              (section.blocks[i] as InlineTexts).texts[j] = {
+                type: 'citation',
+                key: lookUp.bibKey,
+              };
+            }
+          }
+        }
+      }
+    }
+  }
+
   const sortedSections = sortedSectionsWithDependency(sections);
   dumpFiles({
     type: 'chapter',
