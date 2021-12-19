@@ -94,31 +94,42 @@ const blockParsers: {
 };
 
 const decodeLink = (ctx: ParserContext, link: LinkNode): ParserContext => {
-  // URL or unlinked backlink
-  if (
-    link.pathType === 'absolute' ||
-    (link.pathType === 'relative' && !ctx.links.has(link.href))
-  ) {
+  // URL
+  if (link.pathType === 'absolute') {
     ctx.blocks.push({
       type: 'inlineTexts',
       texts: [
         {
           type: 'plainText',
-          content: `${link.content}(\\url{${link.href}})`,
+          content:
+            link.pathType === 'absolute'
+              ? `\\url{${link.href}}`
+              : `\\texttt{${link.content}}`,
         },
       ],
     });
-  }
-  // Backlink
-  else {
+  } else if (link.pathType === 'relative' && ctx.links.has(link.href)) {
+    // Backlink
+    console.log(`backlink: ${link.href} found`);
     ctx.blocks.push({
       type: 'inlineTexts',
       texts: [
         {
           type: 'backlink',
-          name: link.href,
+          name: link.content,
           key: toHash(link.href),
         } as Backlink,
+      ],
+    });
+  } else {
+    console.warn(`backlink: ${link.href} not found`);
+    ctx.blocks.push({
+      type: 'inlineTexts',
+      texts: [
+        {
+          type: 'plainText',
+          content: `\\texttt{${link.href}}`,
+        },
       ],
     });
   }
@@ -241,15 +252,29 @@ const nodeParsers: {
     return ctx;
   },
   plain: async (ctx, plain) => {
-    ctx.blocks.push({
-      type: 'inlineTexts',
-      texts: [
-        {
-          type: 'plainText',
-          content: plain.text,
-        } as PlainText,
-      ],
-    });
+    const match = plain.text.match(/\\\\cite\{(.*?)\}/);
+    if (match) {
+      console.log(`citation: ${match[1]} found`);
+      ctx.blocks.push({
+        type: 'inlineTexts',
+        texts: [
+          {
+            type: 'citation',
+            key: match[1],
+          },
+        ],
+      });
+    } else {
+      ctx.blocks.push({
+        type: 'inlineTexts',
+        texts: [
+          {
+            type: 'plainText',
+            content: plain.text,
+          },
+        ],
+      });
+    }
     return ctx;
   },
 };
@@ -286,13 +311,14 @@ const decodeHeader = (node: DecorationNode): Header => {
 
 export const decodeSection = async (
   dir: string,
+  links: string[],
   dumpPage: ScrapBoxPage
 ): Promise<Section> => {
   const lines = dumpPage.lines.join('\n');
   const page = parse(lines);
   let ctx: ParserContext = {
     dir,
-    links: new Set(dumpPage.linksLc),
+    links: new Set(links),
     blocks: [],
     title: '',
     bibKey: '',
@@ -326,7 +352,7 @@ export const decodeSection = async (
     type: 'section',
     title: ctx.title,
     blocks: ctx.blocks,
-    backLinks: Array.from(ctx.links.values()),
+    backLinks: Array.from(dumpPage.linksLc),
     bibKey: ctx.bibKey,
     bibTeX: ctx.bibTeX,
     bibliography: [],

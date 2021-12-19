@@ -37,5 +37,6 @@ deno run --allow-read https://pax.deno.dev/wakame-tech/scrapbox_to_latex/src/ind
 - [x] LaTeX Endoer
   - [x] section, subsection
   - [x] hyperref
-  - [ ] citation
-  - [ ] part section by hashtag
+  -[x] citation
+  - [x] `index.tex`
+  - [x] `refs.bib`

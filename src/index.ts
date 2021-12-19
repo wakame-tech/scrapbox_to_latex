@@ -4,6 +4,7 @@ import { ScrapBoxDump } from './scrapbox/types.ts';
 import { encodeSection } from './latex/sectionEncoder.ts';
 import { decodeSection } from './scrapbox/decoder.ts';
 import { topoSort, Item } from './util/TopoSort.ts';
+import { basename } from "https://deno.land/std@0.117.0/path/win32.ts";
 
 const sortedSectionsWithDependency = (sections: Section[]): Section[] => {
   const items: Item<Section>[] = sections.map((section) => {
@@ -17,7 +18,7 @@ const sortedSectionsWithDependency = (sections: Section[]): Section[] => {
 };
 
 const dumpFiles = async (chapter: Chapter): Promise<void> => {
-  const texs: { path: string; tex: string }[] = [];
+  const texs: { path: string; tex: string; bib: string }[] = [];
   const dir = `${chapter.title}`;
   const includeLaTeXPathPrefix = '\\Proj';
 
@@ -30,19 +31,27 @@ const dumpFiles = async (chapter: Chapter): Promise<void> => {
     texs.push({
       path,
       tex,
+      bib: section.bibTeX,
     });
   }
 
   let indexTex = '';
   const indexTeXPath = `${dir}/index.tex`;
 
+  let bibTeX = '';
+  const bibTeXPath = `${dir}/refs.bib`;
+
   Deno.mkdirSync(dir, { recursive: true });
-  for (const { path, tex } of texs) {
-    indexTex += `\\input{${includeLaTeXPathPrefix}/${path}}\n`;
+  for (const { path, tex, bib } of texs) {
+    indexTex += `\\input{${includeLaTeXPathPrefix}/${basename(path).split('.')[0]}}\n`;
+    bibTeX += `${bib}\n`;
     console.log(`dump ${path}`);
     Deno.writeTextFileSync(path, tex);
   }
   Deno.writeTextFileSync(indexTeXPath, indexTex);
+  console.log(`dump ${indexTeXPath}`);
+  Deno.writeTextFileSync(bibTeXPath, bibTeX);
+  console.log(`dump ${bibTeXPath}`);
 };
 
 const main = async () => {
@@ -56,9 +65,10 @@ const main = async () => {
   const dump: ScrapBoxDump = JSON.parse(file);
 
   const dir = `${dump.name}`;
+  const links = dump.pages.map((page) => page.title);
   Deno.mkdirSync(`${dir}/res`, { recursive: true });
   const sections = await Promise.all(
-    dump.pages.map((page) => decodeSection(dir, page))
+    dump.pages.map((page) => decodeSection(dir, links, page))
   );
 
   // backlink loopup
