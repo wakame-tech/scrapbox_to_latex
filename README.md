@@ -1,5 +1,5 @@
 # scrapbox_to_latex
-A Scrapbox convertor that convert to latex's sections.
+A Scrapbox convertor that convert to latex files.
 
 ## usage
 ### scrapbox.json
@@ -24,7 +24,7 @@ A Scrapbox convertor that convert to latex's sections.
 ### dump latex
 ```
 deno run --allow-read https://pax.deno.dev/wakame-tech/scrapbox_to_latex/src/index.ts \
-  <dumped scrapbox json> --ignore-titles <comma separated titles to ignore>
+  <dumped scrapbox json>
 ```
 
 ## features
@@ -33,7 +33,7 @@ deno run --allow-read https://pax.deno.dev/wakame-tech/scrapbox_to_latex/src/ind
   - [x] formula
   - [x] code
   - [ ] table
-  - [x] image(from Gyazo only)
+  - [x] image(in private project, Gyazo only)
 - [x] LaTeX Endoer
   - [x] section, subsection
   - [x] hyperref
