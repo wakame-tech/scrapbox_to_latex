@@ -60,7 +60,7 @@ const blockParsers: {
         texts: [
           {
             type: 'plainText',
-            content: '\\\\ \n',
+            content: '\n',
           },
         ],
       });
@@ -100,11 +100,9 @@ const decodeLink = (ctx: ParserContext, link: LinkNode): ParserContext => {
       type: 'inlineTexts',
       texts: [
         {
-          type: 'plainText',
-          content:
-            link.pathType === 'absolute'
-              ? `\\url{${link.href}}`
-              : `\\texttt{${link.content}}`,
+          type: 'url',
+          url: link.href,
+          label: link.content,
         },
       ],
     });
@@ -116,7 +114,7 @@ const decodeLink = (ctx: ParserContext, link: LinkNode): ParserContext => {
       texts: [
         {
           type: 'backlink',
-          name: link.content,
+          name: link.href,
           key: toHash(link.href),
         } as Backlink,
       ],
@@ -128,7 +126,7 @@ const decodeLink = (ctx: ParserContext, link: LinkNode): ParserContext => {
       texts: [
         {
           type: 'plainText',
-          content: `\\texttt{${link.href}}`,
+          content: `${link.href}`,
         },
       ],
     });

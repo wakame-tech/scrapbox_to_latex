@@ -1,5 +1,4 @@
 import { urlToPath } from '../scrapbox/download.ts';
-import { basename } from 'https://deno.land/std/path/mod.ts';
 import {
   Block,
   HeaderLevel,
@@ -8,6 +7,7 @@ import {
   Section,
 } from '../model/documents.ts';
 import { MapDiscriminatedUnion } from '../util/typeutil.ts';
+import { basename } from 'https://deno.land/std@0.117.0/path/mod.ts';
 
 type InlineTextKeyedMap = MapDiscriminatedUnion<InlineText, 'type'>;
 const inlineTextParsers: {
@@ -19,6 +19,7 @@ const inlineTextParsers: {
   citation: (citation) => `\\cite{${citation.key}}`,
   backlink: (backlink) => `\\hyperref[${backlink.key}]{${backlink.name}}`,
   inlineCode: (inlineCode) => `\\texttt{${inlineCode.content}}`,
+  url: (url) => `\\url{${url.url}}`,
 };
 
 const inlineTextsEncoder = (inlineTexts: InlineTexts): string => {
@@ -97,7 +98,11 @@ ${code.code}
 export const encodeSection = (section: Section): string => {
   let res = '';
   for (const block of section.blocks) {
-    if (block.type === 'header' && block.content.texts[0].type === 'plainText' && block.content.texts[0].content === '参考文献') {
+    if (
+      block.type === 'header' &&
+      block.content.texts[0].type === 'plainText' &&
+      block.content.texts[0].content === '参考文献'
+    ) {
       break;
     }
     // @ts-ignore

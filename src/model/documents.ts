@@ -56,13 +56,20 @@ export interface Formula {
   formula: string;
 }
 
+export interface Url {
+  type: 'url';
+  url: string;
+  label: string;
+}
+
 export type InlineText =
   | PlainText
   | Strong
   | InlineFormula
   | Citation
   | Backlink
-  | InlineCode;
+  | InlineCode
+  | Url;
 
 export interface InlineTexts {
   type: 'inlineTexts';

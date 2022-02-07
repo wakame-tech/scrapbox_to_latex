@@ -1,10 +1,9 @@
 import { parse } from 'https://deno.land/std@0.66.0/flags/mod.ts';
 import { Chapter, InlineTexts, Section } from './model/documents.ts';
 import { ScrapBoxDump } from './scrapbox/types.ts';
-import { encodeSection } from './latex/sectionEncoder.ts';
 import { decodeSection } from './scrapbox/decoder.ts';
 import { topoSort, Item } from './util/TopoSort.ts';
-import { basename } from "https://deno.land/std@0.117.0/path/win32.ts";
+import { dumpMarkdownFiles } from './markdown/index.ts';
 
 const sortedSectionsWithDependency = (sections: Section[]): Section[] => {
   const items: Item<Section>[] = sections.map((section) => {
@@ -17,60 +16,7 @@ const sortedSectionsWithDependency = (sections: Section[]): Section[] => {
   return sorted.map((item) => item.value);
 };
 
-const dumpFiles = async (chapter: Chapter): Promise<void> => {
-  const texs: { path: string; tex: string; bib: string }[] = [];
-  const dir = `${chapter.title}`;
-  const includeLaTeXPathPrefix = '\\Proj';
-
-  for (const section of chapter.sections) {
-    const tex = encodeSection(section);
-    const sanitizedPath = section.title
-      .replace(/[$\\/:\*\?"<>\|]/g, '')
-      .replace(/ /g, '_');
-    const path = `${dir}/${sanitizedPath}.tex`;
-    texs.push({
-      path,
-      tex,
-      bib: section.bibTeX,
-    });
-  }
-
-  let indexTex = '';
-  const indexTeXPath = `${dir}/index.tex`;
-
-  let bibTeX = '';
-  const bibTeXPath = `${dir}/refs.bib`;
-
-  Deno.mkdirSync(dir, { recursive: true });
-  for (const { path, tex, bib } of texs) {
-    indexTex += `\\input{${includeLaTeXPathPrefix}/${basename(path).split('.')[0]}}\n`;
-    bibTeX += `${bib}\n`;
-    console.log(`dump ${path}`);
-    Deno.writeTextFileSync(path, tex);
-  }
-  Deno.writeTextFileSync(indexTeXPath, indexTex);
-  console.log(`dump ${indexTeXPath}`);
-  Deno.writeTextFileSync(bibTeXPath, bibTeX);
-  console.log(`dump ${bibTeXPath}`);
-};
-
-const main = async () => {
-  const args = parse(Deno.args);
-  if (args._[0] === null) {
-    console.error('no json file path');
-    Deno.exit(1);
-  }
-
-  const file = Deno.readTextFileSync(args._[0].toString());
-  const dump: ScrapBoxDump = JSON.parse(file);
-
-  const dir = `${dump.name}`;
-  const links = dump.pages.map((page) => page.title);
-  Deno.mkdirSync(`${dir}/res`, { recursive: true });
-  const sections = await Promise.all(
-    dump.pages.map((page) => decodeSection(dir, links, page))
-  );
-
+export const resolveBackLinks = async (sections: Section[]): Promise<void> => {
   // backlink loopup
   for (const section of sections) {
     for (let i = 0; i < section.blocks.length; i++) {
@@ -92,13 +38,34 @@ const main = async () => {
       }
     }
   }
+};
 
+const main = async () => {
+  const args = parse(Deno.args);
+  if (args._[0] === null) {
+    console.error('no json file path');
+    Deno.exit(1);
+  }
+
+  const file = Deno.readTextFileSync(args._[0].toString());
+  const dump: ScrapBoxDump = JSON.parse(file);
+
+  const dir = `${dump.name}`;
+  const links = dump.pages.map((page) => page.title);
+  Deno.mkdirSync(`${dir}/res`, { recursive: true });
+  const sections = await Promise.all(
+    dump.pages.map((page) => decodeSection(dir, links, page))
+  );
+  resolveBackLinks(sections);
   const sortedSections = sortedSectionsWithDependency(sections);
-  dumpFiles({
+  const chapter: Chapter = {
     type: 'chapter',
     title: dump.name,
     sections: sortedSections,
-  });
+  };
+
+  dumpMarkdownFiles(chapter);
+  // dumpLaTeXFiles(chapter);
 };
 
 main();
